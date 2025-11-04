@@ -32,6 +32,15 @@ class CryptoEngine:
 
     def initialize_keys(self, passphrase: str) -> bool:
         """Initialize or load encryption keys"""
+        # Validate passphrase
+        if not passphrase:
+            print("[SECURITY WARNING] Empty passphrase is highly insecure!")
+            return False
+
+        if len(passphrase) < 8:
+            print(f"[SECURITY WARNING] Passphrase should be at least 8 characters (current: {len(passphrase)})")
+            # Still allow but warn
+
         key_file = self.data_dir / "identity.enc"
 
         # Derive local encryption key from passphrase

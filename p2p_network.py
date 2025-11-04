@@ -15,6 +15,8 @@ import traceback
 
 from obfuscation import ProtocolWrapper, TrafficObfuscator
 from crypto_engine import CryptoEngine
+import time
+from collections import deque
 
 
 class Peer:
@@ -28,6 +30,27 @@ class Peer:
         self.nickname = "Unknown"
         self.connected_at = datetime.now()
         self.protocol = ProtocolWrapper()
+
+        # Rate limiting (max 100 messages per 60 seconds)
+        self.message_timestamps = deque(maxlen=100)
+        self.rate_limit_window = 60  # seconds
+        self.max_messages_per_window = 100
+
+    def check_rate_limit(self) -> bool:
+        """Check if peer is within rate limits"""
+        now = time.time()
+
+        # Remove old timestamps
+        while self.message_timestamps and (now - self.message_timestamps[0]) > self.rate_limit_window:
+            self.message_timestamps.popleft()
+
+        # Check limit
+        if len(self.message_timestamps) >= self.max_messages_per_window:
+            return False
+
+        # Add current timestamp
+        self.message_timestamps.append(now)
+        return True
 
     def __str__(self):
         return f"{self.nickname} ({self.address})"
@@ -164,6 +187,11 @@ class P2PNetwork:
         """Handle incoming messages from peer"""
         async for message in peer.websocket:
             try:
+                # Check rate limit
+                if not peer.check_rate_limit():
+                    print(f"[P2P] Rate limit exceeded for {peer.address}, dropping message")
+                    continue
+
                 if isinstance(message, bytes):
                     # Unwrap obfuscation
                     data = peer.protocol.unwrap_application_message(message)

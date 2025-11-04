@@ -240,12 +240,43 @@ class ChatWindow(ctk.CTk):
 
         if address:
             try:
+                # Validate format
                 if ':' not in address:
-                    messagebox.showerror("Error", "Address must be in format IP:PORT")
+                    messagebox.showerror("Error", "Address must be in format IP:PORT\nExample: 192.168.1.100:8765")
                     return
 
-                host, port = address.split(':')
-                port = int(port)
+                parts = address.split(':')
+                if len(parts) != 2:
+                    messagebox.showerror("Error", "Invalid address format")
+                    return
+
+                host, port_str = parts
+                host = host.strip()
+
+                # Validate port
+                try:
+                    port = int(port_str)
+                    if port < 1 or port > 65535:
+                        messagebox.showerror("Error", "Port must be between 1 and 65535")
+                        return
+                except ValueError:
+                    messagebox.showerror("Error", f"Invalid port number: {port_str}")
+                    return
+
+                # Validate IP address (basic check)
+                if not host or host.count('.') > 3:
+                    messagebox.showerror("Error", "Invalid IP address or hostname")
+                    return
+
+                # Check if not connecting to self
+                if address == self.network.get_public_address():
+                    messagebox.showerror("Error", "Cannot connect to yourself!")
+                    return
+
+                # Check if already connected
+                if address in self.network.peers:
+                    messagebox.showwarning("Already Connected", f"Already connected to {address}")
+                    return
 
                 # Connect in background
                 asyncio.run_coroutine_threadsafe(
